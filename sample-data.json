@@ -8,5 +8,5 @@
     { "id": 6, "experiment": "多模型集成", "score": 88, "source": "数据增强B",  "color": "", "lineColor": "", "lineStyle": "solid" }
   ],
   "order": ["基线模型", "学习率1e-3", "学习率1e-4", "数据增强A", "数据增强B", "多模型集成"],
-  "ui": { "fontSize": 12, "axisScale": 100 }
+  "ui": { "axisFontSize": 12, "labelFontSize": 11, "axisScale": 100 }
 }

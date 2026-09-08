@@ -162,9 +162,13 @@
   <section class="card chart-card">
     <h2 class="card-title">散点图 <span class="hint">（有来源实验的点会从来源实验连线指向该点；拖动下方竖排实验名可排序）</span></h2>
     <div class="chart-controls">
-      <label>实验名字号
-        <input type="range" id="fontSize" min="8" max="24" step="1" value="12">
-        <span class="val" id="fontSizeVal">12</span>
+      <label>横轴字号
+        <input type="range" id="axisFontSize" min="8" max="24" step="1" value="12">
+        <span class="val" id="axisFontSizeVal">12</span>
+      </label>
+      <label>点标签字号
+        <input type="range" id="labelFontSize" min="8" max="24" step="1" value="11">
+        <span class="val" id="labelFontSizeVal">11</span>
       </label>
       <label>横轴比例
         <input type="range" id="axisScale" min="60" max="250" step="5" value="100">
@@ -222,8 +226,9 @@
   var PLOT_HEIGHT = 360;
   var POINT_R = 7;
   var UI = {
-    fontSize: 12,   // 实验名字号（横轴竖排 + 点上方横排联动）
-    axisScale: 100  // 横轴比例（%），作用于绘图区宽度
+    axisFontSize: 12,  // 横轴实验名字号
+    labelFontSize: 11, // 点上方分数标签字号
+    axisScale: 100     // 横轴比例（%），作用于绘图区宽度
   };
 
   var points = [];          // {id, experiment, score, source}
@@ -289,7 +294,8 @@
           nextId = d.nextId || nextId;
           if (Array.isArray(d.order)) experimentOrder = d.order.slice();
           if (d.ui) {
-            UI.fontSize = d.ui.fontSize || 12;
+            UI.axisFontSize = d.ui.axisFontSize || d.ui.fontSize || 12;
+            UI.labelFontSize = d.ui.labelFontSize || (d.ui.fontSize ? d.ui.fontSize - 1 : 11);
             UI.axisScale = d.ui.axisScale || 100;
           }
           // 保证 nextId 不被旧数据覆盖成更小值
@@ -392,7 +398,7 @@
       var len = Array.from(e || '').length || 1;
       if (len > longest) longest = len;
     });
-    var marginBottom = longest * UI.fontSize + 34;
+    var marginBottom = longest * UI.axisFontSize + 34;
     var margin = { top: MARGIN_TOP, right: MARGIN_RIGHT, bottom: marginBottom, left: MARGIN_LEFT };
     // 横轴比例：作用于绘图区宽度（大于容器时图表横向滚动）
     var basePlotW = containerW - margin.left - margin.right;
@@ -510,7 +516,7 @@
 
       var labelY = y - POINT_R - 5;
       if (labelY < plotTop - 2) labelY = y + POINT_R + 13; // 得分很高时标签放到点下方
-      appendHorizontalText(pointLayer, String(sc), x, labelY, Math.max(8, UI.fontSize - 1), '#1e293b');
+      appendHorizontalText(pointLayer, String(sc), x, labelY, UI.labelFontSize, '#1e293b');
     });
 
     // —— 横轴竖排标签（可拖动）——
@@ -518,14 +524,14 @@
       var x = xFor(exp);
       var g = el('g', { 'class': 'axis-label', 'data-exp': exp, 'style': 'cursor:grab' }, xAxisLayer);
       // 透明命中矩形（覆盖整列宽度与竖排文字高度）
-      var rectH = (Array.from(exp || '').length || 1) * UI.fontSize + 6;
+      var rectH = (Array.from(exp || '').length || 1) * UI.axisFontSize + 6;
       var rect = el('rect', {
         x: x - colW / 2, y: plotBottom + 8, width: colW,
         height: rectH, fill: 'transparent', 'stroke': 'none'
       }, g);
       rect.setAttribute('fill', 'transparent');
       // 竖排文字
-      appendVerticalText(g, exp || '?', x, plotBottom + 12 + approxTextWidth(exp || '?', UI.fontSize) / 2, UI.fontSize, '#475569', 'axis-text');
+      appendVerticalText(g, exp || '?', x, plotBottom + 12 + approxTextWidth(exp || '?', UI.axisFontSize) / 2, UI.axisFontSize, '#475569', 'axis-text');
 
       // 拖动逻辑
       g.addEventListener('pointerdown', function (e) { startDrag(e, exp, x, g); });
@@ -533,7 +539,7 @@
 
     // 拖动指示条
     var indicator = el('rect', {
-      x: 0, y: plotBottom + 4, width: 3, height: longest * UI.fontSize + 8,
+      x: 0, y: plotBottom + 4, width: 3, height: longest * UI.axisFontSize + 8,
       fill: '#2563eb', rx: 1.5, display: 'none'
     }, xAxisLayer);
     chartState.indicator = indicator;
@@ -570,8 +576,8 @@
     var scale = parseFloat(svg.getAttribute('width')) / rectBox.width;
     var startClientX = e.clientX;
     var expText = exp || '?';
-    var cloneCy = chartState.plotTop + chartState.plotH + 12 + approxTextWidth(expText, UI.fontSize) / 2;
-    var clone = appendVerticalText(chartState.dragLayer, expText, x, cloneCy, UI.fontSize, '#2563eb', 'axis-text');
+    var cloneCy = chartState.plotTop + chartState.plotH + 12 + approxTextWidth(expText, UI.axisFontSize) / 2;
+    var clone = appendVerticalText(chartState.dragLayer, expText, x, cloneCy, UI.axisFontSize, '#2563eb', 'axis-text');
     clone.setAttribute('style', 'opacity:.9;cursor:grabbing');
     clone.setAttribute('data-clone', '1');
 
@@ -881,14 +887,21 @@
 
   // 显示设置
   function syncControls() {
-    document.getElementById('fontSize').value = UI.fontSize;
-    document.getElementById('fontSizeVal').textContent = UI.fontSize;
+    document.getElementById('axisFontSize').value = UI.axisFontSize;
+    document.getElementById('axisFontSizeVal').textContent = UI.axisFontSize;
+    document.getElementById('labelFontSize').value = UI.labelFontSize;
+    document.getElementById('labelFontSizeVal').textContent = UI.labelFontSize;
     document.getElementById('axisScale').value = UI.axisScale;
     document.getElementById('axisScaleVal').textContent = UI.axisScale + '%';
   }
-  document.getElementById('fontSize').addEventListener('input', function () {
-    UI.fontSize = Number(this.value);
-    document.getElementById('fontSizeVal').textContent = UI.fontSize;
+  document.getElementById('axisFontSize').addEventListener('input', function () {
+    UI.axisFontSize = Number(this.value);
+    document.getElementById('axisFontSizeVal').textContent = UI.axisFontSize;
+    save(); renderChart();
+  });
+  document.getElementById('labelFontSize').addEventListener('input', function () {
+    UI.labelFontSize = Number(this.value);
+    document.getElementById('labelFontSizeVal').textContent = UI.labelFontSize;
     save(); renderChart();
   });
   document.getElementById('axisScale').addEventListener('input', function () {
