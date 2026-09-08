@@ -1,0 +1,12 @@
+{
+  "points": [
+    { "id": 1, "experiment": "基线模型",   "score": 55, "source": "",        "color": "", "lineColor": "", "lineStyle": "solid" },
+    { "id": 2, "experiment": "学习率1e-3", "score": 68, "source": "基线模型", "color": "", "lineColor": "", "lineStyle": "solid" },
+    { "id": 3, "experiment": "学习率1e-4", "score": 74, "source": "基线模型", "color": "", "lineColor": "", "lineStyle": "solid" },
+    { "id": 4, "experiment": "数据增强A",  "score": 79, "source": "学习率1e-3", "color": "", "lineColor": "", "lineStyle": "solid" },
+    { "id": 5, "experiment": "数据增强B",  "score": 85, "source": "学习率1e-4", "color": "", "lineColor": "", "lineStyle": "dashed" },
+    { "id": 6, "experiment": "多模型集成", "score": 88, "source": "数据增强B",  "color": "", "lineColor": "", "lineStyle": "solid" }
+  ],
+  "order": ["基线模型", "学习率1e-3", "学习率1e-4", "数据增强A", "数据增强B", "多模型集成"],
+  "ui": { "fontSize": 12, "axisScale": 100 }
+}

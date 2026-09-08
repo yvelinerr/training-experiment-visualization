@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>训练结果散点图（可编辑）</title>
+<style>
+  :root {
+    --bg: #f1f5f9;
+    --card: #ffffff;
+    --border: #e2e8f0;
+    --text: #0f172a;
+    --muted: #64748b;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --danger: #dc2626;
+    --shadow: 0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.05);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  header {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 22px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    box-shadow: var(--shadow);
+  }
+  header h1 { font-size: 18px; margin: 0; }
+  header .sub { color: var(--muted); font-size: 12px; }
+  .spacer { flex: 1; }
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  main {
+    display: flex;
+    gap: 18px;
+    padding: 18px 22px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    padding: 16px;
+  }
+  .chart-card { flex: 1 1 560px; min-width: 0; }
+  .editor-card { flex: 0 1 560px; min-width: 360px; }
+
+  .card-title {
+    font-size: 14px; font-weight: 600; margin: 0 0 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-title .hint { font-weight: 400; color: var(--muted); font-size: 12px; }
+
+  button {
+    font-family: inherit;
+    font-size: 13px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--text);
+    padding: 7px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+  }
+  button:hover { background: #f8fafc; border-color: #cbd5e1; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+  button.danger { color: var(--danger); }
+  button.danger:hover { background: #fef2f2; border-color: #fecaca; }
+
+  #chart { width: 100%; overflow-x: auto; }
+  #chart svg { display: block; height: auto; }
+  .chart-controls {
+    display: flex; gap: 18px; align-items: center; flex-wrap: wrap;
+    margin-bottom: 10px; font-size: 12px; color: var(--muted);
+  }
+  .chart-controls label { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .chart-controls input[type="range"] { width: 140px; cursor: pointer; }
+  .chart-controls .val { color: var(--text); font-weight: 600; min-width: 38px; display: inline-block; }
+
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 6px 6px; text-align: left; vertical-align: middle; }
+  thead th {
+    font-size: 12px; color: var(--muted); font-weight: 600;
+    border-bottom: 2px solid var(--border); white-space: nowrap;
+  }
+  tbody tr { border-bottom: 1px solid var(--border); }
+  tbody tr:hover { background: #f8fafc; }
+
+  input[type="text"], input[type="number"], select {
+    font-family: inherit; font-size: 13px;
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 8px; width: 100%; background: #fff; color: var(--text);
+  }
+  input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(37,99,235,.15); }
+  td.col-score input { width: 84px; }
+  td.col-color { width: 96px; }
+  .color-cell { display: flex; align-items: center; gap: 3px; }
+  .color-cell input[type="color"] {
+    width: 34px; height: 26px; padding: 0; border: 1px solid var(--border);
+    border-radius: 5px; background: #fff; cursor: pointer; flex: 0 0 auto;
+  }
+  .color-cell input[type="color"]:disabled { opacity: .35; cursor: default; }
+  .color-cell input[type="checkbox"] { width: auto; margin: 0; cursor: pointer; }
+  td.col-style { width: 76px; }
+  td.col-style select { width: 100%; padding: 5px 4px; }
+  td.col-op { width: 36px; text-align: center; }
+  .del-btn {
+    border: none; background: transparent; color: var(--danger);
+    cursor: pointer; font-size: 16px; line-height: 1; padding: 4px 6px; border-radius: 6px;
+  }
+  .del-btn:hover { background: #fef2f2; }
+
+  .add-row { margin-top: 12px; display: flex; gap: 8px; align-items: center; }
+  .legend-note { margin-top: 12px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+
+  #tooltip {
+    position: fixed; pointer-events: none; z-index: 50;
+    background: #0f172a; color: #f8fafc; font-size: 12px;
+    padding: 8px 10px; border-radius: 8px; box-shadow: var(--shadow);
+    display: none; max-width: 260px; line-height: 1.5; white-space: nowrap;
+  }
+
+  @media (max-width: 900px) {
+    main { flex-direction: column; padding: 12px; }
+    .chart-card, .editor-card { flex: 1 1 auto; width: 100%; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>训练结果散点图</h1>
+    <div class="sub">纵轴：得分（50–90） · 横轴：实验名 · 拖动横轴实验名可调整顺序</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="toolbar">
+    <button id="btnSample" class="primary" title="载入一组演示数据">示例数据</button>
+    <button id="btnImport" title="从 JSON 文件导入">导入</button>
+    <button id="btnExport" title="导出为 JSON 文件">导出 JSON</button>
+    <button id="btnSvg" title="下载当前图表为 SVG 文件">下载 SVG</button>
+    <button id="btnClear" class="danger" title="清空全部数据">清空</button>
+  </div>
+</header>
+
+<main>
+  <section class="card chart-card">
+    <h2 class="card-title">散点图 <span class="hint">（有来源实验的点会从来源实验连线指向该点；拖动下方竖排实验名可排序）</span></h2>
+    <div class="chart-controls">
+      <label>实验名字号
+        <input type="range" id="fontSize" min="8" max="24" step="1" value="12">
+        <span class="val" id="fontSizeVal">12</span>
+      </label>
+      <label>横轴比例
+        <input type="range" id="axisScale" min="60" max="250" step="5" value="100">
+        <span class="val" id="axisScaleVal">100%</span>
+      </label>
+    </div>
+    <div id="chart"></div>
+  </section>
+
+  <section class="card editor-card">
+    <h2 class="card-title">数据编辑 <span class="hint">（每个点手动输入）</span></h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>实验名</th>
+            <th>得分（50–90）</th>
+            <th>来源实验（可选）</th>
+            <th title="勾选=自动配色，取消勾选可自定义点颜色">点颜色</th>
+            <th title="勾选=自动（跟随点颜色），取消勾选可自定义线颜色">线颜色</th>
+            <th>线型</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div class="add-row">
+      <button id="btnAdd" class="primary">＋ 添加一个点</button>
+    </div>
+    <div class="legend-note">
+      · 得分范围固定为 50–90，超出会自动修正。<br>
+      · 来源实验留空则该点不画连线；若填写了某个实验名，会从该实验（取该实验得分最高的点）画一条带箭头的线指向本点。<br>
+      · 点颜色 / 线颜色：勾选「自动」使用默认配色（点按实验名、线跟随点颜色），取消勾选后可自定义颜色；线型可选实线或虚线（虚线仅作用于连线）。<br>
+      · 实验名会「横着」显示在点上方，「竖着」显示在横轴下方；横轴下方实验名可用鼠标拖动调整顺序，不拖动则按输入顺序排列。
+    </div>
+  </section>
+</main>
+
+<div id="tooltip"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var SVG_NS = 'http://www.w3.org/2000/svg';
+  var MIN_SCORE = 50;
+  var MAX_SCORE = 90;
+  var TICKS = [50, 60, 70, 80, 90];
+  var STORAGE_KEY = 'scatter_plot_v1';
+
+  var MARGIN_TOP = 26;
+  var MARGIN_RIGHT = 28;
+  var MARGIN_LEFT = 46;
+  var PLOT_HEIGHT = 360;
+  var POINT_R = 7;
+  var UI = {
+    fontSize: 12,   // 实验名字号（横轴竖排 + 点上方横排联动）
+    axisScale: 100  // 横轴比例（%），作用于绘图区宽度
+  };
+
+  var points = [];          // {id, experiment, score, source}
+  var experimentOrder = []; // 横轴顺序（实验名数组，去重）
+  var nextId = 1;
+
+  // —— 数据工具 ——
+  function clampScore(s) {
+    var v = parseFloat(s);
+    if (isNaN(v)) return null;
+    v = Math.min(MAX_SCORE, Math.max(MIN_SCORE, v));
+    return v;
+  }
+
+  function syncOrder() {
+    var existing = {};
+    points.forEach(function (p) { existing[p.experiment] = true; });
+    // 保留仍存在的实验，维持已有顺序
+    experimentOrder = experimentOrder.filter(function (e) { return existing[e]; });
+    // 按输入顺序追加新实验
+    points.forEach(function (p) {
+      if (experimentOrder.indexOf(p.experiment) === -1) experimentOrder.push(p.experiment);
+    });
+  }
+
+  function cleanSources() {
+    points.forEach(function (p) {
+      if (p.source && experimentOrder.indexOf(p.source) === -1) p.source = '';
+    });
+  }
+
+  function reconcile() {
+    syncOrder();
+    cleanSources();
+    save();
+    renderAll();
+  }
+
+  function save() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ points: points, order: experimentOrder, nextId: nextId, ui: UI }));
+    } catch (e) { /* 忽略存储失败 */ }
+  }
+
+  function load() {
+    var raw = null;
+    try { raw = localStorage.getItem(STORAGE_KEY); } catch (e) {}
+    if (raw) {
+      try {
+        var d = JSON.parse(raw);
+        if (d && Array.isArray(d.points)) {
+          points = d.points.map(function (p) {
+            return {
+              id: p.id || nextId++,
+              experiment: (p.experiment == null ? '' : String(p.experiment)),
+              score: p.score,
+              source: (p.source == null ? '' : String(p.source)),
+              color: (p.color == null ? '' : String(p.color)),
+              lineColor: (p.lineColor == null ? '' : String(p.lineColor)),
+              lineStyle: (p.lineStyle === 'dashed' ? 'dashed' : 'solid')
+            };
+          });
+          nextId = d.nextId || nextId;
+          if (Array.isArray(d.order)) experimentOrder = d.order.slice();
+          if (d.ui) {
+            UI.fontSize = d.ui.fontSize || 12;
+            UI.axisScale = d.ui.axisScale || 100;
+          }
+          // 保证 nextId 不被旧数据覆盖成更小值
+          points.forEach(function (p) { if (p.id >= nextId) nextId = p.id + 1; });
+          reconcile();
+          return;
+        }
+      } catch (e) {}
+    }
+    loadSample();
+  }
+
+  function loadSample() {
+    points = [
+      { id: nextId++, experiment: '基线模型',      score: 55, source: '' },
+      { id: nextId++, experiment: '学习率1e-3',    score: 68, source: '基线模型' },
+      { id: nextId++, experiment: '学习率1e-4',    score: 74, source: '基线模型' },
+      { id: nextId++, experiment: '数据增强A',     score: 79, source: '学习率1e-3' },
+      { id: nextId++, experiment: '数据增强B',     score: 85, source: '学习率1e-4' },
+      { id: nextId++, experiment: '多模型集成',    score: 88, source: '数据增强B' }
+    ];
+    experimentOrder = [];
+    reconcile();
+  }
+
+  // —— 颜色 ——
+  function colorFor(name) {
+    var h = 0;
+    var s = String(name == null ? '' : name);
+    for (var i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) >>> 0; }
+    var hue = h % 360;
+    return 'hsl(' + hue + ', 65%, 48%)';
+  }
+
+  // 点的实际颜色（可自定义，缺省按实验名自动配色）
+  function pointColorOf(p) {
+    return (p.color && p.color !== '') ? p.color : colorFor(p.experiment);
+  }
+  // 连线的实际颜色（可自定义，缺省跟随目标点颜色）
+  function lineColorOf(p) {
+    return (p.lineColor && p.lineColor !== '') ? p.lineColor : pointColorOf(p);
+  }
+  // 连线虚实
+  function lineDashOf(p) {
+    return p.lineStyle === 'dashed' ? '5 4' : null;
+  }
+
+  // —— SVG 辅助 ——
+  function el(name, attrs, parent) {
+    var node = document.createElementNS(SVG_NS, name);
+    if (attrs) for (var k in attrs) node.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(node);
+    return node;
+  }
+
+  function appendHorizontalText(parent, text, x, y, fontSize, color) {
+    var t = el('text', { x: x, y: y, 'text-anchor': 'middle' }, parent);
+    t.style.fontSize = fontSize + 'px';
+    t.style.fill = color || '#334155';
+    t.textContent = text;
+    return t;
+  }
+
+  // 估算文本宽度（CJK 按全角，其余按 0.62em），用于旋转标签的垂直定位
+  function approxTextWidth(text, fontSize) {
+    var w = 0;
+    Array.from(text || '').forEach(function (ch) {
+      w += /[\u2E80-\u9FFF\uF900-\uFAFF\uFF00-\uFFEF\u3000-\u303F]/.test(ch) ? 1 : 0.62;
+    });
+    return w * fontSize;
+  }
+
+  // 横轴实验名：先水平排列，再整体右转 90°（顺时针），从上往下读
+  function appendVerticalText(parent, text, x, cy, fontSize, color, cls) {
+    var s = (text == null || text === '') ? '?' : text;
+    var t = el('text', { x: x, y: cy, 'text-anchor': 'middle', 'class': cls || '' }, parent);
+    t.setAttribute('transform', 'rotate(90 ' + x + ' ' + cy + ')');
+    t.style.fontSize = fontSize + 'px';
+    t.style.fill = color || '#475569';
+    t.style.fontWeight = '500';
+    t.textContent = s;
+    return t;
+  }
+
+  // —— 图表渲染 ——
+  var chartState = {}; // 每次渲染的坐标缓存，供 tooltip/拖动使用
+
+  function renderChart() {
+    var container = document.getElementById('chart');
+    container.innerHTML = '';
+    chartState = {};
+
+    var containerW = container.clientWidth || 640;
+    var n = experimentOrder.length;
+    if (n === 0) n = 1;
+
+    // 底部高度由最长实验名决定（竖排）
+    var longest = 1;
+    experimentOrder.forEach(function (e) {
+      var len = Array.from(e || '').length || 1;
+      if (len > longest) longest = len;
+    });
+    var marginBottom = longest * UI.fontSize + 34;
+    var margin = { top: MARGIN_TOP, right: MARGIN_RIGHT, bottom: marginBottom, left: MARGIN_LEFT };
+    // 横轴比例：作用于绘图区宽度（大于容器时图表横向滚动）
+    var basePlotW = containerW - margin.left - margin.right;
+    if (basePlotW < 40) basePlotW = 40;
+    var plotW = basePlotW * (UI.axisScale / 100);
+    var plotH = PLOT_HEIGHT;
+    var height = margin.top + plotH + margin.bottom;
+    var colW = plotW / n;
+    var width = margin.left + plotW + margin.right;
+
+    var svg = el('svg', { width: width, height: height, viewBox: '0 0 ' + width + ' ' + height });
+    container.appendChild(svg);
+
+    var plotLeft = margin.left;
+    var plotTop = margin.top;
+    var plotBottom = margin.top + plotH;
+
+    // 坐标换算
+    function xFor(exp) {
+      var i = experimentOrder.indexOf(exp);
+      if (i < 0) i = 0;
+      return plotLeft + (i + 0.5) * colW;
+    }
+    function yFor(score) {
+      return plotTop + (MAX_SCORE - score) / (MAX_SCORE - MIN_SCORE) * plotH;
+    }
+
+    chartState = { svg: svg, margin: margin, plotLeft: plotLeft, plotTop: plotTop, plotW: plotW, plotH: plotH, colW: colW, n: n, xFor: xFor, yFor: yFor };
+
+    if (experimentOrder.length === 0) {
+      var msg = appendHorizontalText(svg, '暂无数据 — 请在右侧添加点', width / 2, height / 2, 14, '#94a3b8');
+      msg.setAttribute('font-style', 'italic');
+      return;
+    }
+
+    // —— 网格与 Y 轴 ——
+    TICKS.forEach(function (v) {
+      var y = yFor(v);
+      el('line', { x1: plotLeft, y1: y, x2: plotLeft + plotW, y2: y, stroke: '#e2e8f0', 'stroke-width': 1 }, svg);
+      el('line', { x1: plotLeft - 5, y1: y, x2: plotLeft, y2: y, stroke: '#94a3b8', 'stroke-width': 1 }, svg);
+      var t = el('text', { x: plotLeft - 9, y: y + 4, 'text-anchor': 'end' }, svg);
+      t.style.fontSize = '11px'; t.style.fill = '#64748b';
+      t.textContent = v;
+    });
+
+    // Y 轴标签
+    var yl = el('text', { x: 14, y: plotTop + plotH / 2, 'text-anchor': 'middle', transform: 'rotate(-90 14 ' + (plotTop + plotH / 2) + ')' }, svg);
+    yl.style.fontSize = '12px'; yl.style.fill = '#64748b';
+    yl.textContent = '得分';
+
+    // 轴框
+    el('line', { x1: plotLeft, y1: plotTop, x2: plotLeft, y2: plotBottom, stroke: '#94a3b8', 'stroke-width': 1.5 }, svg);
+    el('line', { x1: plotLeft, y1: plotBottom, x2: plotLeft + plotW, y2: plotBottom, stroke: '#94a3b8', 'stroke-width': 1.5 }, svg);
+
+    // —— X 轴刻度（每个实验一列）——
+    var xAxisLayer = el('g', null, svg);
+    var dragLayer = el('g', null, svg);
+    var lineLayer = el('g', null, svg);
+    var pointLayer = el('g', null, svg);
+
+    // 连线（先画，点在线上层）
+    points.forEach(function (p) {
+      var sc = clampScore(p.score);
+      if (sc == null) return;
+      if (!p.source) return;
+      if (experimentOrder.indexOf(p.source) === -1) return;
+      var srcPoints = points.filter(function (q) { return q.experiment === p.source && clampScore(q.score) != null; });
+      if (srcPoints.length === 0) return;
+      var best = srcPoints.reduce(function (a, b) { return (clampScore(a.score) >= clampScore(b.score) ? a : b); });
+      var srcSc = clampScore(best.score);
+      var x1 = xFor(p.source), y1 = yFor(srcSc);
+      var x2 = xFor(p.experiment), y2 = yFor(sc);
+      var dx = x2 - x1, dy = y2 - y1;
+      var len = Math.sqrt(dx * dx + dy * dy);
+      if (len < 1e-6) return; // 来源与目标同点，不画
+      var c = lineColorOf(p); // 线颜色（可自定义，缺省跟随目标点颜色）
+      var dash = lineDashOf(p);
+      // 线终点停在目标圆点描边外沿，箭头尖端紧贴圆点
+      var gap = POINT_R + 2; // 圆半径 + 白描边
+      var ex = x2 - dx / len * gap;
+      var ey = y2 - dy / len * gap;
+      var lineAttrs = { x1: x1, y1: y1, x2: ex, y2: ey, stroke: c, 'stroke-width': 1.8 };
+      if (dash) lineAttrs['stroke-dasharray'] = dash;
+      el('line', lineAttrs, lineLayer);
+      // 手动绘制箭头三角形（尖端在 ex,ey，指向目标点）
+      var angle = Math.atan2(dy, dx);
+      var ah = 7, aw = 4;
+      var bx = ex - Math.cos(angle) * ah;
+      var by = ey - Math.sin(angle) * ah;
+      var px = -Math.sin(angle), py = Math.cos(angle);
+      var arrowD = 'M ' + ex + ' ' + ey +
+        ' L ' + (bx + px * aw) + ' ' + (by + py * aw) +
+        ' L ' + (bx - px * aw) + ' ' + (by - py * aw) + ' Z';
+      el('path', { d: arrowD, fill: c }, lineLayer);
+    });
+
+    // 点 + 点上方横排标签
+    points.forEach(function (p) {
+      var sc = clampScore(p.score);
+      var x = xFor(p.experiment);
+      var c = pointColorOf(p);
+      if (sc == null) {
+        // 无有效得分：只画一个空心占位提示（在列底部），便于识别
+        var cy = plotBottom;
+        el('circle', { cx: x, cy: cy, r: 4, fill: 'none', stroke: '#cbd5e1', 'stroke-width': 1.5 }, pointLayer);
+        return;
+      }
+      var y = yFor(sc);
+      var circle = el('circle', {
+        cx: x, cy: y, r: POINT_R, fill: c, stroke: '#ffffff', 'stroke-width': 2,
+        'data-id': p.id, 'style': 'cursor:pointer'
+      }, pointLayer);
+      circle.addEventListener('mousemove', function (ev) { showTooltip(ev, p); });
+      circle.addEventListener('mouseleave', hideTooltip);
+
+      var labelY = y - POINT_R - 5;
+      if (labelY < plotTop - 2) labelY = y + POINT_R + 13; // 得分很高时标签放到点下方
+      appendHorizontalText(pointLayer, p.experiment || '?', x, labelY, Math.max(8, UI.fontSize - 1), '#1e293b');
+    });
+
+    // —— 横轴竖排标签（可拖动）——
+    experimentOrder.forEach(function (exp) {
+      var x = xFor(exp);
+      var g = el('g', { 'class': 'axis-label', 'data-exp': exp, 'style': 'cursor:grab' }, xAxisLayer);
+      // 透明命中矩形（覆盖整列宽度与竖排文字高度）
+      var rectH = (Array.from(exp || '').length || 1) * UI.fontSize + 6;
+      var rect = el('rect', {
+        x: x - colW / 2, y: plotBottom + 8, width: colW,
+        height: rectH, fill: 'transparent', 'stroke': 'none'
+      }, g);
+      rect.setAttribute('fill', 'transparent');
+      // 竖排文字
+      appendVerticalText(g, exp || '?', x, plotBottom + 12 + approxTextWidth(exp || '?', UI.fontSize) / 2, UI.fontSize, '#475569', 'axis-text');
+
+      // 拖动逻辑
+      g.addEventListener('pointerdown', function (e) { startDrag(e, exp, x, g); });
+    });
+
+    // 拖动指示条
+    var indicator = el('rect', {
+      x: 0, y: plotBottom + 4, width: 3, height: longest * UI.fontSize + 8,
+      fill: '#2563eb', rx: 1.5, display: 'none'
+    }, xAxisLayer);
+    chartState.indicator = indicator;
+    chartState.dragLayer = dragLayer;
+    chartState.xAxisLayer = xAxisLayer;
+  }
+
+  // —— Tooltip ——
+  var tooltip = document.getElementById('tooltip');
+  function showTooltip(ev, p) {
+    var sc = clampScore(p.score);
+    var html = '<b>' + escapeHtml(p.experiment || '?') + '</b><br>得分：' + (sc == null ? '—' : sc) +
+      '<br>来源实验：' + (p.source ? escapeHtml(p.source) : '无') +
+      '<br>线型：' + (p.lineStyle === 'dashed' ? '虚线' : '实线');
+    tooltip.innerHTML = html;
+    tooltip.style.display = 'block';
+    tooltip.style.left = (ev.clientX + 14) + 'px';
+    tooltip.style.top = (ev.clientY + 14) + 'px';
+  }
+  function hideTooltip() { tooltip.style.display = 'none'; }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  // —— 拖动排序 ——
+  var drag = null;
+  function startDrag(e, exp, x, g) {
+    if (experimentOrder.length <= 1) return;
+    e.preventDefault();
+    var svg = chartState.svg;
+    var rectBox = svg.getBoundingClientRect();
+    var scale = parseFloat(svg.getAttribute('width')) / rectBox.width;
+    var startClientX = e.clientX;
+    var expText = exp || '?';
+    var cloneCy = chartState.plotTop + chartState.plotH + 12 + approxTextWidth(expText, UI.fontSize) / 2;
+    var clone = appendVerticalText(chartState.dragLayer, expText, x, cloneCy, UI.fontSize, '#2563eb', 'axis-text');
+    clone.setAttribute('style', 'opacity:.9;cursor:grabbing');
+    clone.setAttribute('data-clone', '1');
+
+    g.style.opacity = '0.3';
+    drag = {
+      exp: exp, startClientX: startClientX, x: x, cloneCy: cloneCy, scale: scale,
+      origGroup: g, clone: clone, svg: svg, pointerId: e.pointerId
+    };
+    try { g.setPointerCapture(e.pointerId); } catch (err) {}
+
+    g.addEventListener('pointermove', onDragMove);
+    g.addEventListener('pointerup', onDragEnd);
+    g.addEventListener('pointercancel', onDragEnd);
+  }
+
+  function onDragMove(e) {
+    if (!drag) return;
+    var dx = e.clientX - drag.startClientX;
+    drag.clone.setAttribute('transform', 'translate(' + (dx / drag.scale) + ',0) rotate(90 ' + drag.x + ' ' + drag.cloneCy + ')');
+
+    // 计算目标列
+    var rectBox = drag.svg.getBoundingClientRect();
+    var xInSvg = (e.clientX - rectBox.left) * drag.scale;
+    var colW = chartState.colW;
+    var n = experimentOrder.length;
+    var idx = Math.round((xInSvg - chartState.plotLeft - colW / 2) / colW);
+    idx = Math.max(0, Math.min(n - 1, idx));
+
+    // 显示指示条
+    var ind = chartState.indicator;
+    var targetX = chartState.plotLeft + (idx + 0.5) * colW;
+    ind.setAttribute('x', targetX - 1.5);
+    ind.setAttribute('display', 'block');
+  }
+
+  function onDragEnd(e) {
+    if (!drag) return;
+    var rectBox = drag.svg.getBoundingClientRect();
+    var xInSvg = (e.clientX - rectBox.left) * drag.scale;
+    var colW = chartState.colW;
+    var n = experimentOrder.length;
+    var idx = Math.round((xInSvg - chartState.plotLeft - colW / 2) / colW);
+    idx = Math.max(0, Math.min(n - 1, idx));
+
+    var from = experimentOrder.indexOf(drag.exp);
+    if (from >= 0) {
+      experimentOrder.splice(from, 1);
+      experimentOrder.splice(idx, 0, drag.exp);
+    }
+
+    if (drag.clone && drag.clone.parentNode) drag.clone.parentNode.removeChild(drag.clone);
+    drag = null;
+    save();
+    renderChart();
+  }
+
+  // —— 编辑表格 ——
+  function renderTable() {
+    var tbody = document.getElementById('rows');
+    tbody.innerHTML = '';
+    var optionsHtml = '<option value="">（无来源）</option>';
+    experimentOrder.forEach(function (e) {
+      if (e === '') return; // 空实验名不作为来源
+      optionsHtml += '<option value="' + escapeHtml(e) + '">' + escapeHtml(e || '?') + '</option>';
+    });
+
+    points.forEach(function (p) {
+      var tr = document.createElement('tr');
+      tr.setAttribute('data-id', p.id);
+
+      var tdExp = document.createElement('td');
+      var inExp = document.createElement('input');
+      inExp.type = 'text'; inExp.value = p.experiment; inExp.setAttribute('data-field', 'experiment');
+      inExp.placeholder = '实验名';
+      tdExp.appendChild(inExp);
+      tr.appendChild(tdExp);
+
+      var tdScore = document.createElement('td');
+      tdScore.className = 'col-score';
+      var inScore = document.createElement('input');
+      inScore.type = 'number'; inScore.min = MIN_SCORE; inScore.max = MAX_SCORE; inScore.step = '1';
+      inScore.value = (p.score == null ? '' : p.score);
+      inScore.setAttribute('data-field', 'score');
+      tdScore.appendChild(inScore);
+      tr.appendChild(tdScore);
+
+      var tdSrc = document.createElement('td');
+      var sel = document.createElement('select');
+      sel.setAttribute('data-field', 'source');
+      sel.innerHTML = optionsHtml;
+      sel.value = (p.source && experimentOrder.indexOf(p.source) !== -1) ? p.source : '';
+      tdSrc.appendChild(sel);
+      tr.appendChild(tdSrc);
+
+      // 点颜色（勾选=自动，取消勾选可自定义）
+      var tdColor = document.createElement('td');
+      tdColor.className = 'col-color';
+      var colorWrap = document.createElement('div');
+      colorWrap.className = 'color-cell';
+      var autoCb = document.createElement('input');
+      autoCb.type = 'checkbox';
+      autoCb.setAttribute('data-field', 'colorAuto');
+      autoCb.title = '勾选=自动配色（按实验名）；取消勾选可自定义点颜色';
+      autoCb.checked = !(p.color && p.color !== '');
+      var colorIn = document.createElement('input');
+      colorIn.type = 'color';
+      colorIn.setAttribute('data-field', 'color');
+      colorIn.value = pointColorOf(p);
+      colorIn.disabled = autoCb.checked;
+      colorWrap.appendChild(autoCb);
+      colorWrap.appendChild(colorIn);
+      tdColor.appendChild(colorWrap);
+      tr.appendChild(tdColor);
+
+      // 线颜色（勾选=自动跟随点颜色，取消勾选可自定义）
+      var tdLineColor = document.createElement('td');
+      tdLineColor.className = 'col-color';
+      var lineWrap = document.createElement('div');
+      lineWrap.className = 'color-cell';
+      var lineAutoCb = document.createElement('input');
+      lineAutoCb.type = 'checkbox';
+      lineAutoCb.setAttribute('data-field', 'lineColorAuto');
+      lineAutoCb.title = '勾选=自动（跟随点颜色）；取消勾选可自定义线颜色';
+      lineAutoCb.checked = !(p.lineColor && p.lineColor !== '');
+      var lineColorIn = document.createElement('input');
+      lineColorIn.type = 'color';
+      lineColorIn.setAttribute('data-field', 'lineColor');
+      lineColorIn.value = lineColorOf(p);
+      lineColorIn.disabled = lineAutoCb.checked;
+      lineWrap.appendChild(lineAutoCb);
+      lineWrap.appendChild(lineColorIn);
+      tdLineColor.appendChild(lineWrap);
+      tr.appendChild(tdLineColor);
+
+      // 线型
+      var tdStyle = document.createElement('td');
+      tdStyle.className = 'col-style';
+      var selStyle = document.createElement('select');
+      selStyle.setAttribute('data-field', 'lineStyle');
+      selStyle.innerHTML = '<option value="solid">实线</option><option value="dashed">虚线</option>';
+      selStyle.value = (p.lineStyle === 'dashed') ? 'dashed' : 'solid';
+      tdStyle.appendChild(selStyle);
+      tr.appendChild(tdStyle);
+
+      var tdOp = document.createElement('td');
+      tdOp.className = 'col-op';
+      var btn = document.createElement('button');
+      btn.className = 'del-btn'; btn.title = '删除该点'; btn.textContent = '✕';
+      btn.setAttribute('data-action', 'delete');
+      tdOp.appendChild(btn);
+      tr.appendChild(tdOp);
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  function handleTableInput(e) {
+    var field = e.target.getAttribute('data-field');
+    var tr = e.target.closest('tr');
+    if (!tr || !field) return;
+    var id = Number(tr.getAttribute('data-id'));
+    var p = null;
+    for (var i = 0; i < points.length; i++) if (points[i].id === id) { p = points[i]; break; }
+    if (!p) return;
+
+    if (field === 'experiment') {
+      p.experiment = e.target.value;
+      // 实时让横轴新列出现（不清理来源、不重建表格，避免失焦）
+      syncOrder();
+      save(); renderChart();
+    } else if (field === 'score') {
+      p.score = e.target.value;
+      save(); renderChart();
+    } else if (field === 'source') {
+      p.source = e.target.value;
+      save(); renderChart();
+    } else if (field === 'color') {
+      p.color = e.target.value;
+      save(); renderChart();
+    } else if (field === 'lineColor') {
+      p.lineColor = e.target.value;
+      save(); renderChart();
+    }
+  }
+
+  function handleTableChange(e) {
+    var field = e.target.getAttribute('data-field');
+    var tr = e.target.closest('tr');
+    if (!tr || !field) return;
+    var id = Number(tr.getAttribute('data-id'));
+    var p = null;
+    for (var i = 0; i < points.length; i++) if (points[i].id === id) { p = points[i]; break; }
+    if (!p) return;
+
+    if (field === 'colorAuto') {
+      // 勾选=自动配色；取消勾选=填入当前默认色作为自定义起点
+      p.color = e.target.checked ? '' : colorFor(p.experiment);
+      reconcile();
+    } else if (field === 'lineColorAuto') {
+      p.lineColor = e.target.checked ? '' : pointColorOf(p);
+      reconcile();
+    } else if (field === 'lineStyle') {
+      p.lineStyle = e.target.value;
+      save(); renderChart();
+    } else if (field === 'source') {
+      p.source = e.target.value;
+      save(); renderChart();
+    } else if (field === 'experiment') {
+      // 实验名变化后重建下拉选项并清理失效来源
+      reconcile();
+    }
+  }
+
+  function handleTableClick(e) {
+    var btn = e.target.closest('[data-action="delete"]');
+    if (!btn) return;
+    var tr = btn.closest('tr');
+    var id = Number(tr.getAttribute('data-id'));
+    points = points.filter(function (p) { return p.id !== id; });
+    reconcile();
+  }
+
+  function addPoint() {
+    points.push({ id: nextId++, experiment: '', score: 60, source: '', color: '', lineColor: '', lineStyle: 'solid' });
+    reconcile();
+  }
+
+  function clearAll() {
+    if (!confirm('确定清空全部数据吗？')) return;
+    points = [];
+    experimentOrder = [];
+    reconcile();
+  }
+
+  // —— 导入 / 导出 ——
+  function exportJSON() {
+    var data = JSON.stringify({ points: points, order: experimentOrder }, null, 2);
+    var blob = new Blob([data], { type: 'application/json' });
+    downloadBlob(blob, '训练结果散点图数据.json');
+  }
+
+  function importJSON() {
+    var input = document.createElement('input');
+    input.type = 'file'; input.accept = '.json,application/json';
+    input.onchange = function () {
+      var f = input.files && input.files[0];
+      if (!f) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        try {
+          var d = JSON.parse(reader.result);
+          if (!d || !Array.isArray(d.points)) { alert('JSON 格式不正确：缺少 points 数组'); return; }
+          points = d.points.map(function (p) {
+            return {
+              id: p.id || nextId++,
+              experiment: (p.experiment == null ? '' : String(p.experiment)),
+              score: p.score,
+              source: (p.source == null ? '' : String(p.source)),
+              color: (p.color == null ? '' : String(p.color)),
+              lineColor: (p.lineColor == null ? '' : String(p.lineColor)),
+              lineStyle: (p.lineStyle === 'dashed' ? 'dashed' : 'solid')
+            };
+          });
+          points.forEach(function (p) { if (p.id >= nextId) nextId = p.id + 1; });
+          experimentOrder = Array.isArray(d.order) ? d.order.slice() : [];
+          reconcile();
+        } catch (err) { alert('导入失败：' + err.message); }
+      };
+      reader.readAsText(f);
+    };
+    input.click();
+  }
+
+  function exportSVG() {
+    var svg = chartState.svg;
+    if (!svg) return;
+    // 移除拖动过程中的临时样式影响前先克隆
+    var clone = svg.cloneNode(true);
+    clone.setAttribute('xmlns', SVG_NS);
+    var xml = new XMLSerializer().serializeToString(clone);
+    var blob = new Blob([xml], { type: 'image/svg+xml;charset=utf-8' });
+    downloadBlob(blob, '训练结果散点图.svg');
+  }
+
+  function downloadBlob(blob, name) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  // —— 渲染总控 ——
+  function renderAll() {
+    renderChart();
+    renderTable();
+  }
+
+  // —— 事件绑定 ——
+  document.getElementById('btnAdd').addEventListener('click', addPoint);
+  document.getElementById('btnSample').addEventListener('click', loadSample);
+  document.getElementById('btnClear').addEventListener('click', clearAll);
+  document.getElementById('btnExport').addEventListener('click', exportJSON);
+  document.getElementById('btnImport').addEventListener('click', importJSON);
+  document.getElementById('btnSvg').addEventListener('click', exportSVG);
+
+  // 显示设置
+  function syncControls() {
+    document.getElementById('fontSize').value = UI.fontSize;
+    document.getElementById('fontSizeVal').textContent = UI.fontSize;
+    document.getElementById('axisScale').value = UI.axisScale;
+    document.getElementById('axisScaleVal').textContent = UI.axisScale + '%';
+  }
+  document.getElementById('fontSize').addEventListener('input', function () {
+    UI.fontSize = Number(this.value);
+    document.getElementById('fontSizeVal').textContent = UI.fontSize;
+    save(); renderChart();
+  });
+  document.getElementById('axisScale').addEventListener('input', function () {
+    UI.axisScale = Number(this.value);
+    document.getElementById('axisScaleVal').textContent = UI.axisScale + '%';
+    save(); renderChart();
+  });
+
+  var tbody = document.getElementById('rows');
+  tbody.addEventListener('input', handleTableInput);
+  tbody.addEventListener('change', handleTableChange);
+  tbody.addEventListener('click', handleTableClick);
+
+  var resizeTimer = null;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(renderChart, 150);
+  });
+
+  // —— 启动 ——
+  load();
+  syncControls();
+})();
+</script>
+</body>
+</html>
