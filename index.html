@@ -510,7 +510,7 @@
 
       var labelY = y - POINT_R - 5;
       if (labelY < plotTop - 2) labelY = y + POINT_R + 13; // 得分很高时标签放到点下方
-      appendHorizontalText(pointLayer, p.experiment || '?', x, labelY, Math.max(8, UI.fontSize - 1), '#1e293b');
+      appendHorizontalText(pointLayer, String(sc), x, labelY, Math.max(8, UI.fontSize - 1), '#1e293b');
     });
 
     // —— 横轴竖排标签（可拖动）——
