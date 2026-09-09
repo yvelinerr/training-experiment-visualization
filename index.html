@@ -167,6 +167,10 @@
         <input type="range" id="axisFontSize" min="8" max="24" step="1" value="12">
         <span class="val" id="axisFontSizeVal">12</span>
       </label>
+      <label>纵轴字号
+        <input type="range" id="axisYFontSize" min="8" max="24" step="1" value="11">
+        <span class="val" id="axisYFontSizeVal">11</span>
+      </label>
       <label>点标签字号
         <input type="range" id="labelFontSize" min="8" max="24" step="1" value="11">
         <span class="val" id="labelFontSizeVal">11</span>
@@ -237,6 +241,7 @@
   var UI = {
     axisFontSize: 12,  // 横轴实验名字号
     labelFontSize: 11, // 点标签字号
+    axisYFontSize: 11, // 纵轴字号（刻度数字）
     axisScale: 100,    // 横轴比例（%），作用于绘图区宽度
     title: '',         // 图表标题（空则不显示）
     titleFontSize: 14  // 标题字号
@@ -319,6 +324,7 @@
           if (d.ui) {
             UI.axisFontSize = d.ui.axisFontSize || d.ui.fontSize || 12;
             UI.labelFontSize = d.ui.labelFontSize || (d.ui.fontSize ? d.ui.fontSize - 1 : 11);
+            UI.axisYFontSize = d.ui.axisYFontSize || 11;
             UI.axisScale = d.ui.axisScale || 100;
             UI.title = d.ui.title || '';
             UI.titleFontSize = d.ui.titleFontSize || 14;
@@ -462,13 +468,13 @@
       el('line', { x1: plotLeft, y1: y, x2: plotLeft + plotW, y2: y, stroke: '#e2e8f0', 'stroke-width': 1 }, svg);
       el('line', { x1: plotLeft - 5, y1: y, x2: plotLeft, y2: y, stroke: '#94a3b8', 'stroke-width': 1 }, svg);
       var t = el('text', { x: plotLeft - 9, y: y + 4, 'text-anchor': 'end' }, svg);
-      t.style.fontSize = '11px'; t.style.fill = '#64748b';
+      t.style.fontSize = UI.axisYFontSize + 'px'; t.style.fill = '#64748b';
       t.textContent = v;
     });
 
     // Y 轴标签
     var yl = el('text', { x: 14, y: plotTop + plotH / 2, 'text-anchor': 'middle', transform: 'rotate(-90 14 ' + (plotTop + plotH / 2) + ')' }, svg);
-    yl.style.fontSize = '12px'; yl.style.fill = '#64748b';
+    yl.style.fontSize = (UI.axisYFontSize + 1) + 'px'; yl.style.fill = '#64748b';
     yl.textContent = '得分';
 
     // 轴框
@@ -937,6 +943,8 @@
     document.getElementById('axisFontSizeVal').textContent = UI.axisFontSize;
     document.getElementById('labelFontSize').value = UI.labelFontSize;
     document.getElementById('labelFontSizeVal').textContent = UI.labelFontSize;
+    document.getElementById('axisYFontSize').value = UI.axisYFontSize;
+    document.getElementById('axisYFontSizeVal').textContent = UI.axisYFontSize;
     document.getElementById('axisScale').value = UI.axisScale;
     document.getElementById('axisScaleVal').textContent = UI.axisScale + '%';
     document.getElementById('chartTitle').value = UI.title;
@@ -951,6 +959,11 @@
   document.getElementById('labelFontSize').addEventListener('input', function () {
     UI.labelFontSize = Number(this.value);
     document.getElementById('labelFontSizeVal').textContent = UI.labelFontSize;
+    save(); renderChart();
+  });
+  document.getElementById('axisYFontSize').addEventListener('input', function () {
+    UI.axisYFontSize = Number(this.value);
+    document.getElementById('axisYFontSizeVal').textContent = UI.axisYFontSize;
     save(); renderChart();
   });
   document.getElementById('axisScale').addEventListener('input', function () {
