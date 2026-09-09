@@ -147,7 +147,7 @@
 <header>
   <div>
     <h1>训练结果散点图</h1>
-    <div class="sub">纵轴：得分（50–90） · 横轴：实验名 · 拖动横轴实验名可调整顺序</div>
+    <div class="sub">纵轴：得分（50–90） · 横轴：训练时间 · 拖动横轴训练时间可调整顺序</div>
   </div>
   <div class="spacer"></div>
   <div class="toolbar">
@@ -161,7 +161,7 @@
 
 <main>
   <section class="card chart-card">
-    <h2 class="card-title">散点图 <span class="hint">（有来源实验的点会从来源实验连线指向该点；拖动下方竖排实验名可排序）</span></h2>
+    <h2 class="card-title">散点图 <span class="hint">（有来源实验的点会从来源实验连线指向该点；拖动下方竖排训练时间可排序）</span></h2>
     <div class="chart-controls">
       <label>横轴字号
         <input type="range" id="axisFontSize" min="8" max="24" step="1" value="12">
@@ -192,7 +192,8 @@
       <table>
         <thead>
           <tr>
-            <th>实验名</th>
+            <th>模型名</th>
+            <th>训练时间</th>
             <th>得分（50–90）</th>
             <th>来源实验（可选）</th>
             <th title="勾选=自动配色，取消勾选可自定义点颜色">点颜色</th>
@@ -209,9 +210,9 @@
     </div>
     <div class="legend-note">
       · 得分范围固定为 50–90，超出会自动修正。<br>
-      · 来源实验留空则该点不画连线；若填写了某个实验名，会从该实验（取该实验得分最高的点）画一条带箭头的线指向本点。<br>
-      · 点颜色 / 线颜色：勾选「自动」使用默认配色（点按实验名、线跟随点颜色），取消勾选后可自定义颜色；线型可选实线或虚线（虚线仅作用于连线）。<br>
-      · 实验名会「横着」显示在点上方，「竖着」显示在横轴下方；横轴下方实验名可用鼠标拖动调整顺序，不拖动则按输入顺序排列。
+      · 来源实验留空则该点不画连线；若填写了某个模型名，会从该模型（取该模型得分最高的点）画一条带箭头的线指向本点。<br>
+      · 点颜色 / 线颜色：勾选「自动」使用默认配色（点按模型名、线跟随点颜色），取消勾选后可自定义颜色；线型可选实线或虚线（虚线仅作用于连线）。<br>
+      · 横轴按「训练时间」排列，训练时间显示在横轴下方（竖排），可用鼠标拖动调整顺序；点上方两行显示模型名与得分。
     </div>
   </section>
 </main>
@@ -242,7 +243,7 @@
   };
 
   var points = [];          // {id, experiment, score, source}
-  var experimentOrder = []; // 横轴顺序（实验名数组，去重）
+  var timeOrder = []; // 横轴顺序（训练时间数组，去重）
   var nextId = 1;
 
   // —— 数据工具 ——
@@ -253,20 +254,31 @@
     return v;
   }
 
+  // 所有模型名去重（按输入顺序）—— 用于来源实验下拉
+  function getExperiments() {
+    var arr = [];
+    points.forEach(function (p) {
+      if (arr.indexOf(p.experiment) === -1) arr.push(p.experiment);
+    });
+    return arr;
+  }
+
   function syncOrder() {
     var existing = {};
-    points.forEach(function (p) { existing[p.experiment] = true; });
-    // 保留仍存在的实验，维持已有顺序
-    experimentOrder = experimentOrder.filter(function (e) { return existing[e]; });
-    // 按输入顺序追加新实验
+    points.forEach(function (p) { existing[p.trainingTime] = true; });
+    // 保留仍存在的训练时间，维持已有顺序
+    timeOrder = timeOrder.filter(function (e) { return existing[e]; });
+    // 按输入顺序追加新训练时间
     points.forEach(function (p) {
-      if (experimentOrder.indexOf(p.experiment) === -1) experimentOrder.push(p.experiment);
+      if (timeOrder.indexOf(p.trainingTime) === -1) timeOrder.push(p.trainingTime);
     });
   }
 
   function cleanSources() {
+    var expSet = {};
+    points.forEach(function (p) { expSet[p.experiment] = true; });
     points.forEach(function (p) {
-      if (p.source && experimentOrder.indexOf(p.source) === -1) p.source = '';
+      if (p.source && !expSet[p.source]) p.source = '';
     });
   }
 
@@ -279,7 +291,7 @@
 
   function save() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ points: points, order: experimentOrder, nextId: nextId, ui: UI }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ points: points, order: timeOrder, nextId: nextId, ui: UI }));
     } catch (e) { /* 忽略存储失败 */ }
   }
 
@@ -294,6 +306,7 @@
             return {
               id: p.id || nextId++,
               experiment: (p.experiment == null ? '' : String(p.experiment)),
+              trainingTime: (p.trainingTime == null ? '' : String(p.trainingTime)),
               score: p.score,
               source: (p.source == null ? '' : String(p.source)),
               color: (p.color == null ? '' : String(p.color)),
@@ -302,7 +315,7 @@
             };
           });
           nextId = d.nextId || nextId;
-          if (Array.isArray(d.order)) experimentOrder = d.order.slice();
+          if (Array.isArray(d.order)) timeOrder = d.order.slice();
           if (d.ui) {
             UI.axisFontSize = d.ui.axisFontSize || d.ui.fontSize || 12;
             UI.labelFontSize = d.ui.labelFontSize || (d.ui.fontSize ? d.ui.fontSize - 1 : 11);
@@ -322,14 +335,14 @@
 
   function loadSample() {
     points = [
-      { id: nextId++, experiment: '基线模型',      score: 55, source: '' },
-      { id: nextId++, experiment: '学习率1e-3',    score: 68, source: '基线模型' },
-      { id: nextId++, experiment: '学习率1e-4',    score: 74, source: '基线模型' },
-      { id: nextId++, experiment: '数据增强A',     score: 79, source: '学习率1e-3' },
-      { id: nextId++, experiment: '数据增强B',     score: 85, source: '学习率1e-4' },
-      { id: nextId++, experiment: '多模型集成',    score: 88, source: '数据增强B' }
+      { id: nextId++, experiment: '基线模型',   trainingTime: '1小时', score: 55, source: '' },
+      { id: nextId++, experiment: '学习率1e-3', trainingTime: '2小时', score: 68, source: '基线模型' },
+      { id: nextId++, experiment: '学习率1e-4', trainingTime: '3小时', score: 74, source: '基线模型' },
+      { id: nextId++, experiment: '数据增强A',  trainingTime: '4小时', score: 79, source: '学习率1e-3' },
+      { id: nextId++, experiment: '数据增强B',  trainingTime: '5小时', score: 85, source: '学习率1e-4' },
+      { id: nextId++, experiment: '多模型集成', trainingTime: '6小时', score: 88, source: '数据增强B' }
     ];
-    experimentOrder = [];
+    timeOrder = [];
     reconcile();
   }
 
@@ -414,12 +427,12 @@
     chartState = {};
 
     var containerW = container.clientWidth || 640;
-    var n = experimentOrder.length;
+    var n = timeOrder.length;
     if (n === 0) n = 1;
 
     // 底部高度由最长实验名决定（竖排）
     var longest = 1;
-    experimentOrder.forEach(function (e) {
+    timeOrder.forEach(function (e) {
       var len = Array.from(e || '').length || 1;
       if (len > longest) longest = len;
     });
@@ -445,7 +458,7 @@
 
     // 坐标换算
     function xFor(exp) {
-      var i = experimentOrder.indexOf(exp);
+      var i = timeOrder.indexOf(exp);
       if (i < 0) i = 0;
       return plotLeft + (i + 0.5) * colW;
     }
@@ -455,7 +468,7 @@
 
     chartState = { svg: svg, margin: margin, plotLeft: plotLeft, plotTop: plotTop, plotW: plotW, plotH: plotH, colW: colW, n: n, xFor: xFor, yFor: yFor };
 
-    if (experimentOrder.length === 0) {
+    if (timeOrder.length === 0) {
       var msg = appendHorizontalText(svg, '暂无数据 — 请在右侧添加点', width / 2, height / 2, 14, '#94a3b8');
       msg.setAttribute('font-style', 'italic');
       return;
@@ -491,13 +504,12 @@
       var sc = clampScore(p.score);
       if (sc == null) return;
       if (!p.source) return;
-      if (experimentOrder.indexOf(p.source) === -1) return;
       var srcPoints = points.filter(function (q) { return q.experiment === p.source && clampScore(q.score) != null; });
       if (srcPoints.length === 0) return;
       var best = srcPoints.reduce(function (a, b) { return (clampScore(a.score) >= clampScore(b.score) ? a : b); });
       var srcSc = clampScore(best.score);
-      var x1 = xFor(p.source), y1 = yFor(srcSc);
-      var x2 = xFor(p.experiment), y2 = yFor(sc);
+      var x1 = xFor(best.trainingTime), y1 = yFor(srcSc);
+      var x2 = xFor(p.trainingTime), y2 = yFor(sc);
       var dx = x2 - x1, dy = y2 - y1;
       var len = Math.sqrt(dx * dx + dy * dy);
       if (len < 1e-6) return; // 来源与目标同点，不画
@@ -525,7 +537,7 @@
     // 点 + 点上方横排标签
     points.forEach(function (p) {
       var sc = clampScore(p.score);
-      var x = xFor(p.experiment);
+      var x = xFor(p.trainingTime);
       var c = pointColorOf(p);
       if (sc == null) {
         // 无有效得分：只画一个空心占位提示（在列底部），便于识别
@@ -549,7 +561,7 @@
     });
 
     // —— 横轴竖排标签（可拖动）——
-    experimentOrder.forEach(function (exp) {
+    timeOrder.forEach(function (exp) {
       var x = xFor(exp);
       var g = el('g', { 'class': 'axis-label', 'data-exp': exp, 'style': 'cursor:grab' }, xAxisLayer);
       // 透明命中矩形（覆盖整列宽度与竖排文字高度）
@@ -587,7 +599,8 @@
   var tooltip = document.getElementById('tooltip');
   function showTooltip(ev, p) {
     var sc = clampScore(p.score);
-    var html = '<b>' + escapeHtml(p.experiment || '?') + '</b><br>得分：' + (sc == null ? '—' : sc) +
+    var html = '<b>' + escapeHtml(p.experiment || '?') + '</b><br>训练时间：' + escapeHtml(p.trainingTime || '—') +
+      '<br>得分：' + (sc == null ? '—' : sc) +
       '<br>来源实验：' + (p.source ? escapeHtml(p.source) : '无') +
       '<br>线型：' + (p.lineStyle === 'dashed' ? '虚线' : '实线');
     tooltip.innerHTML = html;
@@ -605,7 +618,7 @@
   // —— 拖动排序 ——
   var drag = null;
   function startDrag(e, exp, x, g) {
-    if (experimentOrder.length <= 1) return;
+    if (timeOrder.length <= 1) return;
     e.preventDefault();
     var svg = chartState.svg;
     var rectBox = svg.getBoundingClientRect();
@@ -638,7 +651,7 @@
     var rectBox = drag.svg.getBoundingClientRect();
     var xInSvg = (e.clientX - rectBox.left) * drag.scale;
     var colW = chartState.colW;
-    var n = experimentOrder.length;
+    var n = timeOrder.length;
     var idx = Math.round((xInSvg - chartState.plotLeft - colW / 2) / colW);
     idx = Math.max(0, Math.min(n - 1, idx));
 
@@ -654,14 +667,14 @@
     var rectBox = drag.svg.getBoundingClientRect();
     var xInSvg = (e.clientX - rectBox.left) * drag.scale;
     var colW = chartState.colW;
-    var n = experimentOrder.length;
+    var n = timeOrder.length;
     var idx = Math.round((xInSvg - chartState.plotLeft - colW / 2) / colW);
     idx = Math.max(0, Math.min(n - 1, idx));
 
-    var from = experimentOrder.indexOf(drag.exp);
+    var from = timeOrder.indexOf(drag.exp);
     if (from >= 0) {
-      experimentOrder.splice(from, 1);
-      experimentOrder.splice(idx, 0, drag.exp);
+      timeOrder.splice(from, 1);
+      timeOrder.splice(idx, 0, drag.exp);
     }
 
     if (drag.clone && drag.clone.parentNode) drag.clone.parentNode.removeChild(drag.clone);
@@ -675,8 +688,8 @@
     var tbody = document.getElementById('rows');
     tbody.innerHTML = '';
     var optionsHtml = '<option value="">（无来源）</option>';
-    experimentOrder.forEach(function (e) {
-      if (e === '') return; // 空实验名不作为来源
+    getExperiments().forEach(function (e) {
+      if (e === '') return; // 空模型名不作为来源
       optionsHtml += '<option value="' + escapeHtml(e) + '">' + escapeHtml(e || '?') + '</option>';
     });
 
@@ -687,9 +700,17 @@
       var tdExp = document.createElement('td');
       var inExp = document.createElement('input');
       inExp.type = 'text'; inExp.value = p.experiment; inExp.setAttribute('data-field', 'experiment');
-      inExp.placeholder = '实验名';
+      inExp.placeholder = '模型名';
       tdExp.appendChild(inExp);
       tr.appendChild(tdExp);
+
+      var tdTime = document.createElement('td');
+      var inTime = document.createElement('input');
+      inTime.type = 'text'; inTime.value = (p.trainingTime == null ? '' : p.trainingTime);
+      inTime.setAttribute('data-field', 'trainingTime');
+      inTime.placeholder = '训练时间';
+      tdTime.appendChild(inTime);
+      tr.appendChild(tdTime);
 
       var tdScore = document.createElement('td');
       tdScore.className = 'col-score';
@@ -704,7 +725,7 @@
       var sel = document.createElement('select');
       sel.setAttribute('data-field', 'source');
       sel.innerHTML = optionsHtml;
-      sel.value = (p.source && experimentOrder.indexOf(p.source) !== -1) ? p.source : '';
+      sel.value = p.source || '';
       tdSrc.appendChild(sel);
       tr.appendChild(tdSrc);
 
@@ -781,7 +802,10 @@
 
     if (field === 'experiment') {
       p.experiment = e.target.value;
-      // 实时让横轴新列出现（不清理来源、不重建表格，避免失焦）
+      save(); renderChart();
+    } else if (field === 'trainingTime') {
+      p.trainingTime = e.target.value;
+      // 实时让横轴新列出现
       syncOrder();
       save(); renderChart();
     } else if (field === 'score') {
@@ -822,7 +846,10 @@
       p.source = e.target.value;
       save(); renderChart();
     } else if (field === 'experiment') {
-      // 实验名变化后重建下拉选项并清理失效来源
+      // 模型名变化后重建下拉选项并清理失效来源
+      reconcile();
+    } else if (field === 'trainingTime') {
+      // 训练时间变化后重建（横轴顺序可能变化）
       reconcile();
     }
   }
@@ -837,20 +864,20 @@
   }
 
   function addPoint() {
-    points.push({ id: nextId++, experiment: '', score: 60, source: '', color: '', lineColor: '', lineStyle: 'solid' });
+    points.push({ id: nextId++, experiment: '', trainingTime: '', score: 60, source: '', color: '', lineColor: '', lineStyle: 'solid' });
     reconcile();
   }
 
   function clearAll() {
     if (!confirm('确定清空全部数据吗？')) return;
     points = [];
-    experimentOrder = [];
+    timeOrder = [];
     reconcile();
   }
 
   // —— 导入 / 导出 ——
   function exportJSON() {
-    var data = JSON.stringify({ points: points, order: experimentOrder }, null, 2);
+    var data = JSON.stringify({ points: points, order: timeOrder }, null, 2);
     var blob = new Blob([data], { type: 'application/json' });
     downloadBlob(blob, '训练结果散点图数据.json');
   }
@@ -870,6 +897,7 @@
             return {
               id: p.id || nextId++,
               experiment: (p.experiment == null ? '' : String(p.experiment)),
+              trainingTime: (p.trainingTime == null ? '' : String(p.trainingTime)),
               score: p.score,
               source: (p.source == null ? '' : String(p.source)),
               color: (p.color == null ? '' : String(p.color)),
@@ -878,7 +906,7 @@
             };
           });
           points.forEach(function (p) { if (p.id >= nextId) nextId = p.id + 1; });
-          experimentOrder = Array.isArray(d.order) ? d.order.slice() : [];
+          timeOrder = Array.isArray(d.order) ? d.order.slice() : [];
           reconcile();
         } catch (err) { alert('导入失败：' + err.message); }
       };
