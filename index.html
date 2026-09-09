@@ -164,11 +164,11 @@
     <h2 class="card-title">散点图 <span class="hint">（有来源实验的点会从来源实验连线指向该点；拖动下方竖排训练时间可排序）</span></h2>
     <div class="chart-controls">
       <label>横轴字号
-        <input type="range" id="axisFontSize" min="8" max="24" step="1" value="12">
+        <input type="range" id="axisFontSize" min="6" max="48" step="1" value="12">
         <span class="val" id="axisFontSizeVal">12</span>
       </label>
       <label>纵轴字号
-        <input type="range" id="axisYFontSize" min="8" max="24" step="1" value="11">
+        <input type="range" id="axisYFontSize" min="6" max="48" step="1" value="11">
         <span class="val" id="axisYFontSizeVal">11</span>
       </label>
       <label>点标签字号
@@ -427,7 +427,11 @@
     var axisLabelBlock = UI.axisFontSize + 22; // 横轴水平标签占的底部高度
     var titleBlock = UI.title ? (UI.titleFontSize + 20) : 0; // 标题占的底部高度
     var marginBottom = axisLabelBlock + titleBlock + 8;
-    var margin = { top: MARGIN_TOP, right: MARGIN_RIGHT, bottom: marginBottom, left: MARGIN_LEFT };
+    // 纵轴左侧边距随字号动态调整，避免「得分」标签与刻度重叠
+    var yTickW = Math.ceil(1.1 * UI.axisYFontSize);
+    var yLabW = UI.axisYFontSize + 1;
+    var marginLeft = yLabW + 10 + yTickW + 10;
+    var margin = { top: MARGIN_TOP, right: MARGIN_RIGHT, bottom: marginBottom, left: marginLeft };
     // 横轴比例：作用于绘图区宽度（大于容器时图表横向滚动）
     var basePlotW = containerW - margin.left - margin.right;
     if (basePlotW < 40) basePlotW = 40;
@@ -473,7 +477,8 @@
     });
 
     // Y 轴标签
-    var yl = el('text', { x: 14, y: plotTop + plotH / 2, 'text-anchor': 'middle', transform: 'rotate(-90 14 ' + (plotTop + plotH / 2) + ')' }, svg);
+    var yLabelX = yLabW / 2 + 4;
+    var yl = el('text', { x: yLabelX, y: plotTop + plotH / 2, 'text-anchor': 'middle', transform: 'rotate(-90 ' + yLabelX + ' ' + (plotTop + plotH / 2) + ')' }, svg);
     yl.style.fontSize = (UI.axisYFontSize + 1) + 'px'; yl.style.fill = '#64748b';
     yl.textContent = '得分';
 
