@@ -384,19 +384,6 @@
     return t;
   }
 
-  // 点上两行标签：第一行模型名，第二行得分
-  function appendPointLabel(parent, name, score, x, y, fontSize, color) {
-    var t = el('text', { x: x, y: y, 'text-anchor': 'middle' }, parent);
-    t.style.fontSize = fontSize + 'px';
-    t.style.fill = color || '#1e293b';
-    var ts1 = el('tspan', { x: x, dy: 0 }, t);
-    ts1.textContent = name;
-    ts1.style.fontWeight = '600';
-    var ts2 = el('tspan', { x: x, dy: (fontSize + 2) }, t);
-    ts2.textContent = score;
-    return t;
-  }
-
   // 估算文本宽度（CJK 按全角，其余按 0.62em），用于旋转标签的垂直定位
   function approxTextWidth(text, fontSize) {
     var w = 0;
@@ -549,10 +536,10 @@
       circle.addEventListener('mouseleave', hideTooltip);
 
       var fs = UI.labelFontSize;
-      // 两行标签：第一行模型名，第二行得分；整体先尝试放在点上方
-      var line1Y = y - POINT_R - 6 - (fs + 2);
-      if (line1Y < plotTop + 2) line1Y = y + POINT_R + 6 + fs; // 得分很高时放到点下方
-      appendPointLabel(pointLayer, p.experiment || '?', String(sc), x, line1Y, fs, '#1e293b');
+      // 模型名放在点上方，得分放在点下方
+      var nameEl = appendHorizontalText(pointLayer, p.experiment || '?', x, y - POINT_R - 5, fs, '#1e293b');
+      nameEl.style.fontWeight = '600';
+      appendHorizontalText(pointLayer, String(sc), x, y + POINT_R + fs + 6, fs, '#64748b');
     });
 
     // —— 横轴竖排标签（可拖动）——
