@@ -430,13 +430,8 @@
     var n = timeOrder.length;
     if (n === 0) n = 1;
 
-    // 底部高度由最长实验名决定（竖排）
-    var longest = 1;
-    timeOrder.forEach(function (e) {
-      var len = Array.from(e || '').length || 1;
-      if (len > longest) longest = len;
-    });
-    var axisLabelBlock = 12 + longest * UI.axisFontSize; // 横轴竖排标签占的底部高度
+    // 底部高度：横轴水平标签（单行） + 标题
+    var axisLabelBlock = UI.axisFontSize + 22; // 横轴水平标签占的底部高度
     var titleBlock = UI.title ? (UI.titleFontSize + 20) : 0; // 标题占的底部高度
     var marginBottom = axisLabelBlock + titleBlock + 8;
     var margin = { top: MARGIN_TOP, right: MARGIN_RIGHT, bottom: marginBottom, left: MARGIN_LEFT };
@@ -564,15 +559,15 @@
     timeOrder.forEach(function (exp) {
       var x = xFor(exp);
       var g = el('g', { 'class': 'axis-label', 'data-exp': exp, 'style': 'cursor:grab' }, xAxisLayer);
-      // 透明命中矩形（覆盖整列宽度与竖排文字高度）
-      var rectH = (Array.from(exp || '').length || 1) * UI.axisFontSize + 6;
+      // 透明命中矩形（覆盖整列宽度与单行文字高度）
+      var rectH = UI.axisFontSize + 12;
       var rect = el('rect', {
         x: x - colW / 2, y: plotBottom + 8, width: colW,
         height: rectH, fill: 'transparent', 'stroke': 'none'
       }, g);
       rect.setAttribute('fill', 'transparent');
-      // 竖排文字
-      appendVerticalText(g, exp || '?', x, plotBottom + 12 + approxTextWidth(exp || '?', UI.axisFontSize) / 2, UI.axisFontSize, '#475569', 'axis-text');
+      // 水平文字（横写）
+      appendHorizontalText(g, exp || '?', x, plotBottom + 12 + UI.axisFontSize, UI.axisFontSize, '#475569');
 
       // 拖动逻辑
       g.addEventListener('pointerdown', function (e) { startDrag(e, exp, x, g); });
@@ -580,7 +575,7 @@
 
     // 拖动指示条
     var indicator = el('rect', {
-      x: 0, y: plotBottom + 4, width: 3, height: longest * UI.axisFontSize + 8,
+      x: 0, y: plotBottom + 4, width: 3, height: UI.axisFontSize + 16,
       fill: '#2563eb', rx: 1.5, display: 'none'
     }, xAxisLayer);
     chartState.indicator = indicator;
@@ -625,8 +620,8 @@
     var scale = parseFloat(svg.getAttribute('width')) / rectBox.width;
     var startClientX = e.clientX;
     var expText = exp || '?';
-    var cloneCy = chartState.plotTop + chartState.plotH + 12 + approxTextWidth(expText, UI.axisFontSize) / 2;
-    var clone = appendVerticalText(chartState.dragLayer, expText, x, cloneCy, UI.axisFontSize, '#2563eb', 'axis-text');
+    var cloneCy = chartState.plotTop + chartState.plotH + 12 + UI.axisFontSize;
+    var clone = appendHorizontalText(chartState.dragLayer, expText, x, cloneCy, UI.axisFontSize, '#2563eb');
     clone.setAttribute('style', 'opacity:.9;cursor:grabbing');
     clone.setAttribute('data-clone', '1');
 
@@ -645,7 +640,7 @@
   function onDragMove(e) {
     if (!drag) return;
     var dx = e.clientX - drag.startClientX;
-    drag.clone.setAttribute('transform', 'translate(' + (dx / drag.scale) + ',0) rotate(90 ' + drag.x + ' ' + drag.cloneCy + ')');
+    drag.clone.setAttribute('transform', 'translate(' + (dx / drag.scale) + ',0)');
 
     // 计算目标列
     var rectBox = drag.svg.getBoundingClientRect();
