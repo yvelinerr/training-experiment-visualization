@@ -442,7 +442,14 @@
     var yLabelFS = UI.axisYFontSize + 1; // 「得分」标签字号（跟随纵轴字号）
     var yLabelX = yLabelFS + 4;           // 「得分」标签 x（预留字符宽度，避免贴边/重叠）
     var marginLeft = yLabelX + 12 + 9 + yTickW;
-    var margin = { top: MARGIN_TOP, right: MARGIN_RIGHT, bottom: marginBottom, left: marginLeft };
+    // 右侧边距随最长模型名动态加宽，让居中的标签不被截断
+    var maxNameW = 0;
+    points.forEach(function (p) {
+      var w = approxTextWidth(p.experiment || '?', UI.labelFontSize);
+      if (w > maxNameW) maxNameW = w;
+    });
+    var marginRight = Math.max(MARGIN_RIGHT, Math.ceil(maxNameW / 2) + 16);
+    var margin = { top: MARGIN_TOP, right: marginRight, bottom: marginBottom, left: marginLeft };
     // 横轴比例：作用于绘图区宽度（大于容器时图表横向滚动）
     var basePlotW = containerW - margin.left - margin.right;
     if (basePlotW < 40) basePlotW = 40;
@@ -558,20 +565,10 @@
       circle.addEventListener('mouseleave', hideTooltip);
 
       var fs = UI.labelFontSize;
-      // 模型名放在点上方，得分放在点下方；靠近左右边缘时自适应对齐，避免截断
-      var nameText = p.experiment || '?';
-      var nameW = approxTextWidth(nameText, fs);
-      var nameAnchor = 'middle';
-      if (x + nameW / 2 > plotRight - 2) { nameAnchor = 'end'; }
-      else if (x - nameW / 2 < plotLeft + 2) { nameAnchor = 'start'; }
-      var nameEl = appendHorizontalText(pointLayer, nameText, x, y - POINT_R - 5, fs, '#1e293b', nameAnchor);
+      // 模型名放在点上方，得分放在点下方（均居中，位置不随边界移动）
+      var nameEl = appendHorizontalText(pointLayer, p.experiment || '?', x, y - POINT_R - 5, fs, '#1e293b');
       nameEl.style.fontWeight = '600';
-      var scoreText = String(sc);
-      var scoreW = approxTextWidth(scoreText, fs);
-      var scoreAnchor = 'middle';
-      if (x + scoreW / 2 > plotRight - 2) { scoreAnchor = 'end'; }
-      else if (x - scoreW / 2 < plotLeft + 2) { scoreAnchor = 'start'; }
-      appendHorizontalText(pointLayer, scoreText, x, y + POINT_R + fs + 6, fs, '#64748b', scoreAnchor);
+      appendHorizontalText(pointLayer, String(sc), x, y + POINT_R + fs + 6, fs, '#64748b');
     });
 
     // —— 横轴竖排标签（可拖动）——
@@ -585,13 +582,8 @@
         height: rectH, fill: 'transparent', 'stroke': 'none'
       }, g);
       rect.setAttribute('fill', 'transparent');
-      // 水平文字（横写），靠近左右边缘时自适应对齐避免截断
-      var axisText = exp || '?';
-      var axisW = approxTextWidth(axisText, UI.axisFontSize);
-      var axisAnchor = 'middle';
-      if (x + axisW / 2 > plotRight - 2) { axisAnchor = 'end'; }
-      else if (x - axisW / 2 < plotLeft + 2) { axisAnchor = 'start'; }
-      appendHorizontalText(g, axisText, x, plotBottom + 12 + UI.axisFontSize, UI.axisFontSize, '#475569', axisAnchor);
+      // 水平文字（横写，居中）
+      appendHorizontalText(g, exp || '?', x, plotBottom + 12 + UI.axisFontSize, UI.axisFontSize, '#475569');
 
       // 拖动逻辑
       g.addEventListener('pointerdown', function (e) { startDrag(e, exp, x, g); });
