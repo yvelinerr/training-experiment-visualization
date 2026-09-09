@@ -64,6 +64,13 @@
     display: flex; align-items: center; gap: 8px;
   }
   .card-title .hint { font-weight: 400; color: var(--muted); font-size: 12px; }
+  .editor-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .collapse-btn { font-size: 12px; padding: 4px 10px; min-width: 76px; }
+  .editor-card.collapsed { flex: 0 0 130px; min-width: 130px; overflow: hidden; }
+  .editor-card.collapsed .table-wrap,
+  .editor-card.collapsed .add-row,
+  .editor-card.collapsed .legend-note { display: none; }
+  .editor-card.collapsed .card-title .hint { display: none; }
 
   button {
     font-family: inherit;
@@ -191,7 +198,10 @@
   </section>
 
   <section class="card editor-card">
-    <h2 class="card-title">数据编辑 <span class="hint">（每个点手动输入）</span></h2>
+    <div class="editor-head">
+      <h2 class="card-title">数据编辑 <span class="hint">（每个点手动输入）</span></h2>
+      <button id="btnToggleEditor" class="collapse-btn" title="收起 / 展开编辑器">收起 ▴</button>
+    </div>
     <div class="table-wrap">
       <table>
         <thead>
@@ -427,10 +437,11 @@
     var axisLabelBlock = UI.axisFontSize + 22; // 横轴水平标签占的底部高度
     var titleBlock = UI.title ? (UI.titleFontSize + 20) : 0; // 标题占的底部高度
     var marginBottom = axisLabelBlock + titleBlock + 8;
-    // 纵轴左侧边距随字号动态调整，避免「得分」标签与刻度重叠
+    // 纵轴左侧边距随刻度字号动态调整，避免「得分」标签与刻度重叠
     var yTickW = Math.ceil(1.1 * UI.axisYFontSize);
-    var yLabW = UI.axisYFontSize + 1;
-    var marginLeft = yLabW + 10 + yTickW + 10;
+    var yLabelX = 16;                // 「得分」标签固定 x
+    var yLabelFS = 12;               // 「得分」标签固定字号
+    var marginLeft = yLabelX + yLabelFS + 12 + 9 + yTickW;
     var margin = { top: MARGIN_TOP, right: MARGIN_RIGHT, bottom: marginBottom, left: marginLeft };
     // 横轴比例：作用于绘图区宽度（大于容器时图表横向滚动）
     var basePlotW = containerW - margin.left - margin.right;
@@ -476,10 +487,9 @@
       t.textContent = v;
     });
 
-    // Y 轴标签
-    var yLabelX = yLabW / 2 + 4;
+    // Y 轴标签（固定字号，避免与刻度重叠）
     var yl = el('text', { x: yLabelX, y: plotTop + plotH / 2, 'text-anchor': 'middle', transform: 'rotate(-90 ' + yLabelX + ' ' + (plotTop + plotH / 2) + ')' }, svg);
-    yl.style.fontSize = (UI.axisYFontSize + 1) + 'px'; yl.style.fill = '#64748b';
+    yl.style.fontSize = yLabelFS + 'px'; yl.style.fill = '#64748b';
     yl.textContent = '得分';
 
     // 轴框
@@ -936,6 +946,11 @@
 
   // —— 事件绑定 ——
   document.getElementById('btnAdd').addEventListener('click', addPoint);
+  document.getElementById('btnToggleEditor').addEventListener('click', function () {
+    var card = document.querySelector('.editor-card');
+    var collapsed = card.classList.toggle('collapsed');
+    this.textContent = collapsed ? '展开 ▾' : '收起 ▴';
+  });
   document.getElementById('btnSample').addEventListener('click', loadSample);
   document.getElementById('btnClear').addEventListener('click', clearAll);
   document.getElementById('btnExport').addEventListener('click', exportJSON);
