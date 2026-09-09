@@ -90,6 +90,7 @@
   }
   .chart-controls label { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
   .chart-controls input[type="range"] { width: 140px; cursor: pointer; }
+  .chart-controls input[type="text"] { width: 180px; padding: 5px 8px; }
   .chart-controls .val { color: var(--text); font-weight: 600; min-width: 38px; display: inline-block; }
 
   .table-wrap { overflow-x: auto; }
@@ -171,8 +172,15 @@
         <span class="val" id="labelFontSizeVal">11</span>
       </label>
       <label>横轴比例
-        <input type="range" id="axisScale" min="60" max="250" step="5" value="100">
+        <input type="range" id="axisScale" min="30" max="500" step="5" value="100">
         <span class="val" id="axisScaleVal">100%</span>
+      </label>
+      <label>标题
+        <input type="text" id="chartTitle" placeholder="请输入图表标题">
+      </label>
+      <label>标题字号
+        <input type="range" id="titleFontSize" min="10" max="32" step="1" value="14">
+        <span class="val" id="titleFontSizeVal">14</span>
       </label>
     </div>
     <div id="chart"></div>
@@ -227,8 +235,10 @@
   var POINT_R = 7;
   var UI = {
     axisFontSize: 12,  // 横轴实验名字号
-    labelFontSize: 11, // 点上方分数标签字号
-    axisScale: 100     // 横轴比例（%），作用于绘图区宽度
+    labelFontSize: 11, // 点标签字号
+    axisScale: 100,    // 横轴比例（%），作用于绘图区宽度
+    title: '',         // 图表标题（空则不显示）
+    titleFontSize: 14  // 标题字号
   };
 
   var points = [];          // {id, experiment, score, source}
@@ -297,6 +307,8 @@
             UI.axisFontSize = d.ui.axisFontSize || d.ui.fontSize || 12;
             UI.labelFontSize = d.ui.labelFontSize || (d.ui.fontSize ? d.ui.fontSize - 1 : 11);
             UI.axisScale = d.ui.axisScale || 100;
+            UI.title = d.ui.title || '';
+            UI.titleFontSize = d.ui.titleFontSize || 14;
           }
           // 保证 nextId 不被旧数据覆盖成更小值
           points.forEach(function (p) { if (p.id >= nextId) nextId = p.id + 1; });
@@ -359,6 +371,19 @@
     return t;
   }
 
+  // 点上两行标签：第一行模型名，第二行得分
+  function appendPointLabel(parent, name, score, x, y, fontSize, color) {
+    var t = el('text', { x: x, y: y, 'text-anchor': 'middle' }, parent);
+    t.style.fontSize = fontSize + 'px';
+    t.style.fill = color || '#1e293b';
+    var ts1 = el('tspan', { x: x, dy: 0 }, t);
+    ts1.textContent = name;
+    ts1.style.fontWeight = '600';
+    var ts2 = el('tspan', { x: x, dy: (fontSize + 2) }, t);
+    ts2.textContent = score;
+    return t;
+  }
+
   // 估算文本宽度（CJK 按全角，其余按 0.62em），用于旋转标签的垂直定位
   function approxTextWidth(text, fontSize) {
     var w = 0;
@@ -398,7 +423,9 @@
       var len = Array.from(e || '').length || 1;
       if (len > longest) longest = len;
     });
-    var marginBottom = longest * UI.axisFontSize + 34;
+    var axisLabelBlock = 12 + longest * UI.axisFontSize; // 横轴竖排标签占的底部高度
+    var titleBlock = UI.title ? (UI.titleFontSize + 20) : 0; // 标题占的底部高度
+    var marginBottom = axisLabelBlock + titleBlock + 8;
     var margin = { top: MARGIN_TOP, right: MARGIN_RIGHT, bottom: marginBottom, left: MARGIN_LEFT };
     // 横轴比例：作用于绘图区宽度（大于容器时图表横向滚动）
     var basePlotW = containerW - margin.left - margin.right;
@@ -514,9 +541,11 @@
       circle.addEventListener('mousemove', function (ev) { showTooltip(ev, p); });
       circle.addEventListener('mouseleave', hideTooltip);
 
-      var labelY = y - POINT_R - 5;
-      if (labelY < plotTop - 2) labelY = y + POINT_R + 13; // 得分很高时标签放到点下方
-      appendHorizontalText(pointLayer, String(sc), x, labelY, UI.labelFontSize, '#1e293b');
+      var fs = UI.labelFontSize;
+      // 两行标签：第一行模型名，第二行得分；整体先尝试放在点上方
+      var line1Y = y - POINT_R - 6 - (fs + 2);
+      if (line1Y < plotTop + 2) line1Y = y + POINT_R + 6 + fs; // 得分很高时放到点下方
+      appendPointLabel(pointLayer, p.experiment || '?', String(sc), x, line1Y, fs, '#1e293b');
     });
 
     // —— 横轴竖排标签（可拖动）——
@@ -545,6 +574,13 @@
     chartState.indicator = indicator;
     chartState.dragLayer = dragLayer;
     chartState.xAxisLayer = xAxisLayer;
+
+    // 图表下方标题（可调字号）
+    if (UI.title) {
+      var titleY = plotBottom + axisLabelBlock + 16 + UI.titleFontSize;
+      var titleEl = appendHorizontalText(svg, UI.title, width / 2, titleY, UI.titleFontSize, '#0f172a');
+      titleEl.style.fontWeight = '600';
+    }
   }
 
   // —— Tooltip ——
@@ -893,6 +929,9 @@
     document.getElementById('labelFontSizeVal').textContent = UI.labelFontSize;
     document.getElementById('axisScale').value = UI.axisScale;
     document.getElementById('axisScaleVal').textContent = UI.axisScale + '%';
+    document.getElementById('chartTitle').value = UI.title;
+    document.getElementById('titleFontSize').value = UI.titleFontSize;
+    document.getElementById('titleFontSizeVal').textContent = UI.titleFontSize;
   }
   document.getElementById('axisFontSize').addEventListener('input', function () {
     UI.axisFontSize = Number(this.value);
@@ -907,6 +946,15 @@
   document.getElementById('axisScale').addEventListener('input', function () {
     UI.axisScale = Number(this.value);
     document.getElementById('axisScaleVal').textContent = UI.axisScale + '%';
+    save(); renderChart();
+  });
+  document.getElementById('chartTitle').addEventListener('input', function () {
+    UI.title = this.value;
+    save(); renderChart();
+  });
+  document.getElementById('titleFontSize').addEventListener('input', function () {
+    UI.titleFontSize = Number(this.value);
+    document.getElementById('titleFontSizeVal').textContent = UI.titleFontSize;
     save(); renderChart();
   });
 
