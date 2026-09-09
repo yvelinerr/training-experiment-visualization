@@ -439,9 +439,9 @@
     var marginBottom = axisLabelBlock + titleBlock + 8;
     // 纵轴左侧边距随刻度字号动态调整，避免「得分」标签与刻度重叠
     var yTickW = Math.ceil(1.1 * UI.axisYFontSize);
-    var yLabelX = 16;                // 「得分」标签固定 x
-    var yLabelFS = 12;               // 「得分」标签固定字号
-    var marginLeft = yLabelX + yLabelFS + 12 + 9 + yTickW;
+    var yLabelFS = UI.axisYFontSize + 1; // 「得分」标签字号（跟随纵轴字号）
+    var yLabelX = yLabelFS + 4;           // 「得分」标签 x（预留字符宽度，避免贴边/重叠）
+    var marginLeft = yLabelX + 12 + 9 + yTickW;
     var margin = { top: MARGIN_TOP, right: MARGIN_RIGHT, bottom: marginBottom, left: marginLeft };
     // 横轴比例：作用于绘图区宽度（大于容器时图表横向滚动）
     var basePlotW = containerW - margin.left - margin.right;
