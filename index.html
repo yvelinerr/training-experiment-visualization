@@ -392,8 +392,8 @@
     return node;
   }
 
-  function appendHorizontalText(parent, text, x, y, fontSize, color) {
-    var t = el('text', { x: x, y: y, 'text-anchor': 'middle' }, parent);
+  function appendHorizontalText(parent, text, x, y, fontSize, color, anchor) {
+    var t = el('text', { x: x, y: y, 'text-anchor': anchor || 'middle' }, parent);
     t.style.fontSize = fontSize + 'px';
     t.style.fill = color || '#334155';
     t.textContent = text;
@@ -458,6 +458,7 @@
     var plotLeft = margin.left;
     var plotTop = margin.top;
     var plotBottom = margin.top + plotH;
+    var plotRight = plotLeft + plotW;
 
     // 坐标换算
     function xFor(exp) {
@@ -557,10 +558,20 @@
       circle.addEventListener('mouseleave', hideTooltip);
 
       var fs = UI.labelFontSize;
-      // 模型名放在点上方，得分放在点下方
-      var nameEl = appendHorizontalText(pointLayer, p.experiment || '?', x, y - POINT_R - 5, fs, '#1e293b');
+      // 模型名放在点上方，得分放在点下方；靠近左右边缘时自适应对齐，避免截断
+      var nameText = p.experiment || '?';
+      var nameW = approxTextWidth(nameText, fs);
+      var nameAnchor = 'middle';
+      if (x + nameW / 2 > plotRight - 2) { nameAnchor = 'end'; }
+      else if (x - nameW / 2 < plotLeft + 2) { nameAnchor = 'start'; }
+      var nameEl = appendHorizontalText(pointLayer, nameText, x, y - POINT_R - 5, fs, '#1e293b', nameAnchor);
       nameEl.style.fontWeight = '600';
-      appendHorizontalText(pointLayer, String(sc), x, y + POINT_R + fs + 6, fs, '#64748b');
+      var scoreText = String(sc);
+      var scoreW = approxTextWidth(scoreText, fs);
+      var scoreAnchor = 'middle';
+      if (x + scoreW / 2 > plotRight - 2) { scoreAnchor = 'end'; }
+      else if (x - scoreW / 2 < plotLeft + 2) { scoreAnchor = 'start'; }
+      appendHorizontalText(pointLayer, scoreText, x, y + POINT_R + fs + 6, fs, '#64748b', scoreAnchor);
     });
 
     // —— 横轴竖排标签（可拖动）——
@@ -574,8 +585,13 @@
         height: rectH, fill: 'transparent', 'stroke': 'none'
       }, g);
       rect.setAttribute('fill', 'transparent');
-      // 水平文字（横写）
-      appendHorizontalText(g, exp || '?', x, plotBottom + 12 + UI.axisFontSize, UI.axisFontSize, '#475569');
+      // 水平文字（横写），靠近左右边缘时自适应对齐避免截断
+      var axisText = exp || '?';
+      var axisW = approxTextWidth(axisText, UI.axisFontSize);
+      var axisAnchor = 'middle';
+      if (x + axisW / 2 > plotRight - 2) { axisAnchor = 'end'; }
+      else if (x - axisW / 2 < plotLeft + 2) { axisAnchor = 'start'; }
+      appendHorizontalText(g, axisText, x, plotBottom + 12 + UI.axisFontSize, UI.axisFontSize, '#475569', axisAnchor);
 
       // 拖动逻辑
       g.addEventListener('pointerdown', function (e) { startDrag(e, exp, x, g); });
